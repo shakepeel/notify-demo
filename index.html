@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Мои уведомления</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101827;color:#f8fafc;font:16px system-ui,sans-serif;padding:20px}.card{width:min(100%,430px);background:#1e293b;border:1px solid #334155;border-radius:22px;padding:30px;box-shadow:0 16px 50px #0004}h1{margin:0 0 10px;font-size:26px}p{color:#cbd5e1;line-height:1.5}button{display:block;width:100%;border:0;border-radius:12px;padding:14px;margin-top:12px;background:#60a5fa;color:#0f172a;font-weight:700;font-size:16px;cursor:pointer}button.secondary{background:#334155;color:white}button:disabled{opacity:.5;cursor:not-allowed}#status{font-size:14px;min-height:44px}
+</style>
+</head>
+<body><main class="card"><h1>🔔 Мои уведомления</h1><p>Разреши уведомления, затем отправь себе тестовое сообщение.</p><button id="allow">Разрешить уведомления</button><button id="send" class="secondary">Отправить уведомление</button><p id="status" role="status" aria-live="polite"></p></main>
+<script>
+const statusEl=document.querySelector('#status');
+const setStatus=text=>statusEl.textContent=text;
+function supported(){if(!('Notification' in window)){setStatus('Этот браузер не поддерживает уведомления.');return false}if(!window.isSecureContext){setStatus('Открой сайт через HTTPS или localhost.');return false}return true}
+document.querySelector('#allow').addEventListener('click',async()=>{if(!supported())return;try{const result=await Notification.requestPermission();setStatus(result==='granted'?'Уведомления разрешены!':result==='denied'?'Доступ запрещён в настройках браузера.':'Разрешение не выдано.')}catch(e){setStatus('Ошибка запроса разрешения: '+e.message)}});
+document.querySelector('#send').addEventListener('click',()=>{if(!supported())return;if(Notification.permission!=='granted'){setStatus('Сначала разреши уведомления.');return}try{new Notification('Привет! 👋',{body:'Это уведомление с твоего сайта на чистом JavaScript.',tag:'demo-notification'});setStatus('Уведомление отправлено браузеру.')}catch(e){setStatus('Не удалось показать уведомление: '+e.message)}});
+if(supported())setStatus('Статус разрешения: '+({default:'ещё не запрошено',granted:'разрешено',denied:'запрещено'}[Notification.permission]));
+</script></body></html>
