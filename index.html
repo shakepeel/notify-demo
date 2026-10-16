@@ -11,8 +11,36 @@
 <script>
 const statusEl=document.querySelector('#status');
 const setStatus=text=>statusEl.textContent=text;
-function supported(){if(!('Notification' in window)){setStatus('Этот браузер не поддерживает уведомления.');return false}if(!window.isSecureContext){setStatus('Открой сайт через HTTPS или localhost.');return false}return true}
-document.querySelector('#allow').addEventListener('click',async()=>{if(!supported())return;try{const result=await Notification.requestPermission();setStatus(result==='granted'?'Уведомления разрешены!':result==='denied'?'Доступ запрещён в настройках браузера.':'Разрешение не выдано.')}catch(e){setStatus('Ошибка запроса разрешения: '+e.message)}});
-document.querySelector('#send').addEventListener('click',()=>{if(!supported())return;if(Notification.permission!=='granted'){setStatus('Сначала разреши уведомления.');return}try{new Notification('Привет! 👋',{body:'Это уведомление с твоего сайта на чистом JavaScript.',tag:'demo-notification'});setStatus('Уведомление отправлено браузеру.')}catch(e){setStatus('Не удалось показать уведомление: '+e.message)}});
+function supported(){
+ if(!window.isSecureContext){setStatus('Открой сайт через HTTPS или localhost.');return false}
+ if(!('serviceWorker' in navigator)){setStatus('Этот браузер не поддерживает Service Worker.');return false}
+ if(!('Notification' in window)){setStatus('Этот браузер не поддерживает уведомления.');return false}
+ return true;
+}
+let registrationPromise;
+function getRegistration(){
+ if(!registrationPromise)registrationPromise=navigator.serviceWorker.register('./sw.js').catch(error=>{registrationPromise=null;throw error});
+ return registrationPromise;
+}
+document.querySelector('#allow').addEventListener('click',async()=>{
+ if(!supported())return;
+ try{
+  const result=await Notification.requestPermission();
+  if(result==='granted'){await getRegistration();setStatus('Уведомления разрешены!')}
+  else setStatus(result==='denied'?'Доступ запрещён. Разреши уведомления в настройках браузера.':'Разрешение не выдано.');
+ }catch(e){setStatus('Ошибка: '+e.message)}
+});
+document.querySelector('#send').addEventListener('click',async()=>{
+ if(!supported())return;
+ if(Notification.permission!=='granted'){setStatus('Сначала нажми «Разрешить уведомления».');return}
+ try{
+  const registration=await getRegistration();
+  await registration.showNotification('Привет! 👋',{
+   body:'Это уведомление с твоего сайта на чистом JavaScript.',
+   tag:'demo-notification'
+  });
+  setStatus('Уведомление отправлено браузеру.');
+ }catch(e){setStatus('Не удалось показать уведомление: '+e.message)}
+});
 if(supported())setStatus('Статус разрешения: '+({default:'ещё не запрошено',granted:'разрешено',denied:'запрещено'}[Notification.permission]));
 </script></body></html>
