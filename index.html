@@ -4,13 +4,25 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Мои уведомления</title>
 <style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101827;color:#f8fafc;font:16px system-ui,sans-serif;padding:20px}.card{width:min(100%,430px);background:#1e293b;border:1px solid #334155;border-radius:22px;padding:30px;box-shadow:0 16px 50px #0004}h1{margin:0 0 10px;font-size:26px}p{color:#cbd5e1;line-height:1.5}button{display:block;width:100%;border:0;border-radius:12px;padding:14px;margin-top:12px;background:#60a5fa;color:#0f172a;font-weight:700;font-size:16px;cursor:pointer}button.secondary{background:#334155;color:white}button:disabled{opacity:.5;cursor:not-allowed}#status{font-size:14px;min-height:44px}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101827;color:#f8fafc;font:16px system-ui,sans-serif;padding:20px}.card{width:min(100%,430px);background:#1e293b;border:1px solid #334155;border-radius:22px;padding:26px;box-shadow:0 16px 50px #0004}h1{margin:0 0 10px;font-size:26px}h2{font-size:19px;margin:24px 0 12px}p{color:#cbd5e1;line-height:1.5}button{display:block;width:100%;border:0;border-radius:12px;padding:14px;margin-top:12px;background:#60a5fa;color:#0f172a;font-weight:700;font-size:16px;cursor:pointer}button.secondary{background:#334155;color:white}button:disabled{opacity:.5;cursor:not-allowed}#status{font-size:14px;min-height:44px}label{display:block;color:#cbd5e1;font-size:14px;margin:13px 0 6px}input,textarea{width:100%;border:1px solid #475569;border-radius:10px;padding:12px;background:#0f172a;color:white;font:inherit}textarea{resize:vertical}.preview{border:1px solid #475569;background:#0f172a;border-radius:14px;padding:15px;margin-top:15px;overflow-wrap:anywhere}.preview strong{display:block;margin-bottom:7px}.preview p{margin:0}.preview img{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:10px;margin-top:12px}.hint{font-size:13px}
 </style>
 </head>
-<body><main class="card"><h1>🔔 Мои уведомления</h1><p>Разреши уведомления, затем отправь себе тестовое сообщение.</p><button id="allow">Разрешить уведомления</button><button id="send" class="secondary">Отправить уведомление</button><button id="delayed" class="secondary">Отправить через 5 секунд</button><p id="status" role="status" aria-live="polite"></p></main>
+<body><main class="card">
+<h1>🔔 Мои уведомления</h1><p>Разреши уведомления, затем отправь себе тестовое сообщение.</p>
+<button id="allow">Разрешить уведомления</button><button id="send" class="secondary">Отправить уведомление</button><button id="delayed" class="secondary">Отправить через 5 секунд</button>
+<h2>Редактор уведомления</h2>
+<label for="title">Заголовок</label><input id="title" maxlength="120" value="🔥 Новое событие!">
+<label for="message">Текст</label><textarea id="message" rows="3">Нажми, чтобы посмотреть подробности.</textarea>
+<label for="image">URL картинки</label><input id="image" type="url" value="https://avatarko.ru/img/kartinka/1/Crazy_Frog.jpg">
+<label for="destination">Путь при нажатии</label><input id="destination" value="./news.html">
+<div class="preview" aria-label="Предпросмотр уведомления"><strong id="preview-title"></strong><p id="preview-message"></p><img id="preview-image" alt="Картинка уведомления" hidden><p class="hint" id="preview-destination"></p></div>
+<button id="custom">Отправить своё уведомление</button>
+<p class="hint">Внешняя картинка и оформление зависят от браузера. Это тестовые уведомления: для доставки после закрытия браузера нужен Web Push и сервис отправки.</p>
+<p id="status" role="status" aria-live="polite"></p>
+</main>
 <script>
-const statusEl=document.querySelector('#status');
-const setStatus=text=>statusEl.textContent=text;
+const $=id=>document.getElementById(id);
+const setStatus=text=>$('status').textContent=text;
 function supported(){
  if(!window.isSecureContext){setStatus('Открой сайт через HTTPS или localhost.');return false}
  if(!('serviceWorker' in navigator)){setStatus('Этот браузер не поддерживает Service Worker.');return false}
@@ -22,7 +34,38 @@ function getRegistration(){
  if(!registrationPromise)registrationPromise=navigator.serviceWorker.register('./sw.js').catch(error=>{registrationPromise=null;throw error});
  return registrationPromise;
 }
-document.querySelector('#allow').addEventListener('click',async()=>{
+function getTarget(){
+ const raw=$('destination').value.trim()||'./';
+ try{
+  const u=new URL(raw,new URL('./',location.href));
+  if(u.origin!==location.origin||!u.pathname.startsWith(new URL('./',location.href).pathname))throw Error('Укажи путь внутри этого сайта.');
+  return u.href;
+ }catch(e){throw Error('Некорректный путь перехода. Используй, например, ./news.html')}
+}
+function editorOptions(){
+ const image=$('image').value.trim();
+ if(image && !/^https:\/\//i.test(image))throw Error('Для картинки нужен HTTPS URL.');
+ return {body:$('message').value,tag:'custom-demo',...(image?{image}:{}),data:{url:getTarget()}};
+}
+function updatePreview(){
+ $('preview-title').textContent=$('title').value||'Без заголовка';
+ $('preview-message').textContent=$('message').value||'Без текста';
+ $('preview-destination').textContent='Переход: '+($('destination').value||'./');
+ const image=$('image').value.trim();
+ const preview=$('preview-image');
+ if(image && /^https:\/\//i.test(image)){preview.src=image;preview.hidden=false}
+ else{preview.removeAttribute('src');preview.hidden=true}
+}
+['title','message','image','destination'].forEach(id=>$(id).addEventListener('input',updatePreview));
+$('preview-image').addEventListener('error',()=>{$('preview-image').hidden=true});
+updatePreview();
+async function notify(title,options){
+ if(!supported())return false;
+ if(Notification.permission!=='granted'){setStatus('Сначала нажми «Разрешить уведомления».');return false}
+ try{const registration=await getRegistration();await registration.showNotification(title,options);setStatus('Уведомление отправлено браузеру.');return true}
+ catch(e){setStatus('Не удалось показать уведомление: '+e.message);return false}
+}
+$('allow').addEventListener('click',async()=>{
  if(!supported())return;
  try{
   const result=await Notification.requestPermission();
@@ -30,37 +73,24 @@ document.querySelector('#allow').addEventListener('click',async()=>{
   else setStatus(result==='denied'?'Доступ запрещён. Разреши уведомления в настройках браузера.':'Разрешение не выдано.');
  }catch(e){setStatus('Ошибка: '+e.message)}
 });
-document.querySelector('#send').addEventListener('click',async()=>{
- if(!supported())return;
- if(Notification.permission!=='granted'){setStatus('Сначала нажми «Разрешить уведомления».');return}
- try{
-  const registration=await getRegistration();
-  await registration.showNotification('Привет! 👋',{
-   body:'Это уведомление с твоего сайта на чистом JavaScript.',
-   tag:'demo-notification'
-  });
-  setStatus('Уведомление отправлено браузеру.');
- }catch(e){setStatus('Не удалось показать уведомление: '+e.message)}
+$('send').addEventListener('click',()=>notify('Привет! 👋',{body:'Это уведомление с твоего сайта на чистом JavaScript.',tag:'demo-notification'}));
+$('custom').addEventListener('click',()=>{
+ try{notify($('title').value||'Новое уведомление',editorOptions())}
+ catch(e){setStatus(e.message)}
 });
-const delayedButton=document.querySelector('#delayed');
-delayedButton.addEventListener('click',async()=>{
+$('delayed').addEventListener('click',async()=>{
  if(!supported())return;
  if(Notification.permission!=='granted'){setStatus('Сначала разреши уведомления.');return}
- delayedButton.disabled=true;
+ $('delayed').disabled=true;
  try{
   const registration=await getRegistration();
   setStatus('Уведомление запланировано через 5 секунд. Не закрывай вкладку.');
   setTimeout(async()=>{
-   try{
-    await registration.showNotification('Прошло 5 секунд! ⏰',{
-     body:'Это отложенное тестовое уведомление.',
-     tag:'delayed-demo'
-    });
-    setStatus('Отложенное уведомление отправлено.');
-   }catch(e){setStatus('Ошибка отложенного уведомления: '+e.message)}
-   finally{delayedButton.disabled=false}
+   try{await registration.showNotification('Прошло 5 секунд! ⏰',{body:'Это отложенное тестовое уведомление.',tag:'delayed-demo'});setStatus('Отложенное уведомление отправлено.')}
+   catch(e){setStatus('Ошибка отложенного уведомления: '+e.message)}
+   finally{$('delayed').disabled=false}
   },5000);
- }catch(e){setStatus('Ошибка: '+e.message);delayedButton.disabled=false}
+ }catch(e){setStatus('Ошибка: '+e.message);$('delayed').disabled=false}
 });
 if(supported())setStatus('Статус разрешения: '+({default:'ещё не запрошено',granted:'разрешено',denied:'запрещено'}[Notification.permission]));
 </script></body></html>
