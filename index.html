@@ -7,7 +7,7 @@
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101827;color:#f8fafc;font:16px system-ui,sans-serif;padding:20px}.card{width:min(100%,430px);background:#1e293b;border:1px solid #334155;border-radius:22px;padding:30px;box-shadow:0 16px 50px #0004}h1{margin:0 0 10px;font-size:26px}p{color:#cbd5e1;line-height:1.5}button{display:block;width:100%;border:0;border-radius:12px;padding:14px;margin-top:12px;background:#60a5fa;color:#0f172a;font-weight:700;font-size:16px;cursor:pointer}button.secondary{background:#334155;color:white}button:disabled{opacity:.5;cursor:not-allowed}#status{font-size:14px;min-height:44px}
 </style>
 </head>
-<body><main class="card"><h1>🔔 Мои уведомления</h1><p>Разреши уведомления, затем отправь себе тестовое сообщение.</p><button id="allow">Разрешить уведомления</button><button id="send" class="secondary">Отправить уведомление</button><p id="status" role="status" aria-live="polite"></p></main>
+<body><main class="card"><h1>🔔 Мои уведомления</h1><p>Разреши уведомления, затем отправь себе тестовое сообщение.</p><button id="allow">Разрешить уведомления</button><button id="send" class="secondary">Отправить уведомление</button><button id="delayed" class="secondary">Отправить через 5 секунд</button><p id="status" role="status" aria-live="polite"></p></main>
 <script>
 const statusEl=document.querySelector('#status');
 const setStatus=text=>statusEl.textContent=text;
@@ -41,6 +41,26 @@ document.querySelector('#send').addEventListener('click',async()=>{
   });
   setStatus('Уведомление отправлено браузеру.');
  }catch(e){setStatus('Не удалось показать уведомление: '+e.message)}
+});
+const delayedButton=document.querySelector('#delayed');
+delayedButton.addEventListener('click',async()=>{
+ if(!supported())return;
+ if(Notification.permission!=='granted'){setStatus('Сначала разреши уведомления.');return}
+ delayedButton.disabled=true;
+ try{
+  const registration=await getRegistration();
+  setStatus('Уведомление запланировано через 5 секунд. Не закрывай вкладку.');
+  setTimeout(async()=>{
+   try{
+    await registration.showNotification('Прошло 5 секунд! ⏰',{
+     body:'Это отложенное тестовое уведомление.',
+     tag:'delayed-demo'
+    });
+    setStatus('Отложенное уведомление отправлено.');
+   }catch(e){setStatus('Ошибка отложенного уведомления: '+e.message)}
+   finally{delayedButton.disabled=false}
+  },5000);
+ }catch(e){setStatus('Ошибка: '+e.message);delayedButton.disabled=false}
 });
 if(supported())setStatus('Статус разрешения: '+({default:'ещё не запрошено',granted:'разрешено',denied:'запрещено'}[Notification.permission]));
 </script></body></html>
